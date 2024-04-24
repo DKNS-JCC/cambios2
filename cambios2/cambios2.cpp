@@ -1,78 +1,70 @@
-
-
-#include <stdio.h>
 #include <Windows.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include "cambios2.h"
 
 INT(*aQueGrupo) (INT);
-VOID(*ponError) (CHAR);
-INT(*inicioCambios) (INT, HANDLE, CHAR);
+VOID(*ponError) (CHAR*);
+INT(*inicioCambios) (INT, HANDLE, CHAR*);
 INT(*inicioCambiosHijo) (INT, HANDLE, CHAR*);
 
-int main()
-{
+int main(int argc, char* argv[]) {
+    int vel;
+
+    if (argc < 2 || argc > 2) {
+        vel = 0;
+        //alarm(20);
+    }
+    else {
+        vel = atoi(argv[1]);
+        if (vel <= 0) {
+            vel = 0;
+            //alarm(20);
+        }
+        else {
+            //alarm(30);
+        }
+    }
+
+    //CARGAMOS LIBRERIA
     HINSTANCE lib = LoadLibrary("cambios2.dll");
-    if (lib == NULL)
-    {
-		printf("Error al cargar la libreria\n");
-		return 1;
-	}
 
-	printf("Libreria cargada\n");
-	FARPROC fncambios2 = GetProcAddress(lib, "fncambios2");
-	if (fncambios2 == NULL)
-	{
-		printf("Error al cargar la funcion\n");
-		return 1;
-	}
+    if (lib == NULL) {
+        printf("No se pudo cargar la libreria\r\n");
+        fflush(stdout);
+        exit(1);
+    }
+    else {
+        printf("Libreria cargada\r\n");
+        fflush(stdout);
+    }
 
-	FARPROC aQuEGrupo = GetProcAddress(lib, "aQuEGrupo");
-	if (aQuEGrupo == NULL)
-	{
-		printf("Error al cargar la funcion\n");
-		return 1;
-	}
-
-    FARPROC pon_error = GetProcAddress(lib, "pon_error");
-    if (pon_error == NULL)
-    {
-		printf("Error al cargar la funcion\n");
-		return 1;
-	}
+    FARPROC fnCambios = GetProcAddress(lib, "fncambios2");
+    if (fnCambios == NULL) {
+        printf("No se ha podido cargar la funcion\r\n");
+        fflush(stdout);
+        exit(1);
+    }
 
     FARPROC incrementarCuenta = GetProcAddress(lib, "incrementarCuenta");
-    if (incrementarCuenta == NULL)
-    {
-        printf("Error al cargar la funcion\n");
-        return 1;
+    if (incrementarCuenta == NULL) {
+        printf("No se ha podido cargar la funcion\r\n");
+        fflush(stdout);
+        exit(1);
     }
 
     FARPROC refrescar = GetProcAddress(lib, "refrescar");
-    if (refrescar == NULL)
-    {
-		printf("Error al cargar la funcion\n");
-		return 1;
-	}
-
-    FARPROC inicioCambios = GetProcAddress(lib, "inicioCambios");
-    if (inicioCambios == NULL)
-    {
-        printf("Error al cargar la funcion\n");
-        return 1;
+    if (refrescar == NULL) {
+        printf("No se ha podido cargar la funcion\r\n");
+        fflush(stdout);
+        exit(1);
     }
 
-    FARPROC inicioCambiosHijo = GetProcAddress(lib, "inicioCambiosHijo");
-    if (inicioCambiosHijo == NULL)
-    {
-		printf("Error al cargar la funcion\n");
-		return 1;
-	}
-
     FARPROC finCambios = GetProcAddress(lib, "finCambios");
-    if (finCambios == NULL)
-    {
-        printf("Error al cargar la funcion\n");
-        return 1;
+    if (finCambios == NULL) {
+        printf("No se ha podido cargar la funcion\r\n");
+        fflush(stdout);
+        exit(1);
     }
 
     aQueGrupo = (INT(*) (INT)) GetProcAddress(lib, "aQuEGrupo");
@@ -82,14 +74,14 @@ int main()
         exit(1);
     }
 
-    ponError = (VOID(*) (CHAR)) GetProcAddress(lib, "pon_error");
+    ponError = (VOID(*) (CHAR*)) GetProcAddress(lib, "pon_error");
     if (ponError == NULL) {
         printf("No se ha podido cargar la funcion\r\n");
         fflush(stdout);
         exit(1);
     }
 
-    inicioCambios = (INT(*) (INT, HANDLE, CHAR)) GetProcAddress(lib, "inicioCambios");
+    inicioCambios = (INT(*) (INT, HANDLE, CHAR*)) GetProcAddress(lib, "inicioCambios");
     if (inicioCambios == NULL) {
         printf("No se ha podido cargar la funcion\r\n");
         fflush(stdout);
@@ -103,11 +95,13 @@ int main()
         exit(1);
     }
 
+    //LIBERAR LIBRERIA
     if (!FreeLibrary(lib)) {
         printf("Error al liberar la libreria\r\n");
         fflush(stdout);
         exit(1);
     }
 
-}
 
+    return 0;
+}
