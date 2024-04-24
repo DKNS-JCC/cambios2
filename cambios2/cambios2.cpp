@@ -8,23 +8,46 @@ VOID(*ponError) (CHAR*);
 INT(*inicioCambios) (INT, HANDLE, CHAR*);
 INT(*inicioCambiosHijo) (INT, HANDLE, CHAR*);
 
-int main(int argc, char* argv[]) {
-    int vel;
 
-    if (argc < 2 || argc > 2) {
-        vel = 0;
-        //alarm(20);
-    }
+int main(int argc, char* argv[]) {
+    int speed;
+    if (argc != 2) {
+		//velocidad maxima
+        speed = 0;
+        HANDLE idTimer = CreateWaitableTimer(NULL, TRUE, NULL);
+        if (idTimer == NULL) {
+			printf("Error al crear el timer\r\n");
+			fflush(stdout);
+			exit(1);
+		}
+        LARGE_INTEGER liDueTime;
+		liDueTime.QuadPart = -200000000;
+        if (!SetWaitableTimer(idTimer, &liDueTime, 0, NULL, NULL, FALSE)) {
+			printf("Error al establecer el timer\r\n");
+			fflush(stdout);
+			exit(1);
+		}
+        if (WaitForSingleObject(idTimer, INFINITE) != WAIT_OBJECT_0) {
+			printf("Error al esperar el timer\r\n");
+			fflush(stdout);
+			exit(1);
+		}
+	}
     else {
-        vel = atoi(argv[1]);
-        if (vel <= 0) {
-            vel = 0;
-            //alarm(20);
+		speed = atoi(argv[1]);
+        if (speed < 0) {
+			printf("La velocidad no puede ser negativa\n");
+			exit(1);
+		}
+        else if (speed == 0) {
+            
+
         }
         else {
-            //alarm(30);
-        }
-    }
+			
+
+		}
+	}
 
     //CARGAMOS LIBRERIA
     HINSTANCE lib = LoadLibrary("cambios2.dll");
@@ -33,10 +56,6 @@ int main(int argc, char* argv[]) {
         printf("No se pudo cargar la libreria\r\n");
         fflush(stdout);
         exit(1);
-    }
-    else {
-        printf("Libreria cargada\r\n");
-        fflush(stdout);
     }
 
     FARPROC fnCambios = GetProcAddress(lib, "fncambios2");
@@ -94,6 +113,7 @@ int main(int argc, char* argv[]) {
         fflush(stdout);
         exit(1);
     }
+
 
     //LIBERAR LIBRERIA
     if (!FreeLibrary(lib)) {
