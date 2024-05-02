@@ -1,8 +1,6 @@
 #include <Windows.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <list>
-#include <iostream>
 
 INT(*refrescar) (VOID);
 INT(*aQueGrupo) (INT);
@@ -23,16 +21,21 @@ typedef struct {
     LONG contador;
     DWORD pid[33];
     INT velocidad;
+
 }grupos;
 
 typedef struct {
     int i;
+}cosas;
 
-} cosas;
+struct ipcs {
+	HANDLE mutex;
+	HANDLE semaforo;
+	char* memoria;
+};
 
-char* memoria;
-HANDLE mutex;
-HANDLE semaforo;
+struct ipcs ipc;
+
 
 DWORD WINAPI padre(LPVOID parametro) {
     MSG mensaje;
@@ -40,12 +43,12 @@ DWORD WINAPI padre(LPVOID parametro) {
     int i = 0;
     int hijos = 0;
     using namespace std;
-    ((grupos*)memoria)->pid[32] = GetCurrentThreadId();
-    ReleaseSemaphore(semaforo, 32, 0);
+    ((grupos*)ipc.memoria)->pid[32] = GetCurrentThreadId();
+    ReleaseSemaphore(ipc.semaforo, 32, 0);
     list<int> matriz[4][4];
 
 
-    ((grupos*)memoria)->personas[8].nombre = ((grupos*)memoria)->personas[9].nombre = ((grupos*)memoria)->personas[18].nombre = ((grupos*)memoria)->personas[19].nombre = ((grupos*)memoria)->personas[28].nombre = ((grupos*)memoria)->personas[29].nombre = ((grupos*)memoria)->personas[38].nombre = ((grupos*)memoria)->personas[39].nombre = ' ';
+    ((grupos*)ipc.memoria)->personas[8].nombre = ((grupos*)ipc.memoria)->personas[9].nombre = ((grupos*)ipc.memoria)->personas[18].nombre = ((grupos*)ipc.memoria)->personas[19].nombre = ((grupos*)ipc.memoria)->personas[28].nombre = ((grupos*)ipc.memoria)->personas[29].nombre = ((grupos*)ipc.memoria)->personas[38].nombre = ((grupos*)ipc.memoria)->personas[39].nombre = ' ';
     int multiple[4];
     int bandera = 1;
     int fila = 0;
@@ -69,27 +72,27 @@ DWORD WINAPI padre(LPVOID parametro) {
 
     while (1) {
 
-        GetMessage(&mensaje, NULL, WM_USER, WM_USER + 99);//tipo +0
-
-        if (mensaje.message == WM_USER + 85) {
+        GetMessage(&mensaje, NULL, WM_USER, WM_USER + 9);//tipo +0
+        if (mensaje.message == WM_USER + 9) {
             break;
         }
-        remitente = (mensaje.message - WM_USER) / 10;
-        destinatario = (mensaje.message - WM_USER) % 10;
 
+
+        remitente = (mensaje.lParam) / 10;
+        destinatario = (mensaje.lParam) % 10;
         if (matriz[destinatario][remitente].size() != 0) {
             tipo = mensaje.message + 100;
 
 
-            PostThreadMessage(((grupos*)memoria)->pid[mensaje.wParam], tipo, NULL, NULL);//tipo +100
+            PostThreadMessage(((grupos*)ipc.memoria)->pid[mensaje.wParam], WM_USER + 10, NULL, NULL);//tipo +100
 
-            GetMessage(&mensaje, NULL, tipo + 100, tipo + 100);//tipo +200
+            GetMessage(&mensaje, NULL, WM_USER + 20, WM_USER + 29);//tipo +200
             tipo = destinatario * 10 + remitente + WM_USER + 100;
 
-            PostThreadMessage(((grupos*)memoria)->pid[matriz[destinatario][remitente].front()], tipo, NULL, NULL);//tipo +100
+            PostThreadMessage(((grupos*)ipc.memoria)->pid[matriz[destinatario][remitente].front()], WM_USER + 10, NULL, NULL);//tipo +100
             matriz[destinatario][remitente].pop_front();
 
-            GetMessage(&mensaje, NULL, tipo + 100, tipo + 100);//tipo +200
+            GetMessage(&mensaje, NULL, WM_USER + 20, WM_USER + 29);//tipo +200
 
 
         }
@@ -128,10 +131,10 @@ DWORD WINAPI padre(LPVOID parametro) {
                 for (i = 0; i <= contador; i++) {
 
                     tipo = multiple[i] + WM_USER + 100;
-                    PostThreadMessage(((grupos*)memoria)->pid[matriz[multiple[i] / 10][multiple[i] % 10].front()], tipo, NULL, NULL);//tipo +100
+                    PostThreadMessage(((grupos*)ipc.memoria)->pid[matriz[multiple[i] / 10][multiple[i] % 10].front()], WM_USER + 10, NULL, NULL);//tipo +100
                     matriz[multiple[i] / 10][multiple[i] % 10].pop_front();
 
-                    GetMessage(&mensaje, NULL, tipo + 100, tipo + 100);//tipo +200
+                    GetMessage(&mensaje, NULL, WM_USER + 20, WM_USER + 29);//tipo +200
                 }
 
             }
@@ -141,53 +144,54 @@ DWORD WINAPI padre(LPVOID parametro) {
 
     }
     for (i = 0; i < 32; i++) {
-        PostThreadMessage(((grupos*)memoria)->pid[i], WM_USER + 85, NULL, NULL);
+        PostThreadMessage(((grupos*)ipc.memoria)->pid[i], WM_USER + 19, NULL, NULL);
     }
+
     return 0;
 }
 
 DWORD WINAPI hijo(LPVOID parametro) {
     MSG mensaje;
     PeekMessage(&mensaje, NULL, WM_USER, WM_USER, PM_NOREMOVE);
-
+    int flag = 1;
     int i = *((int*)parametro);
 
     char nombres[32] = { 'A', 'B', 'C', 'D', 'a', 'b', 'c', 'd', 'E', 'F', 'G', 'H', 'e', 'f', 'g', 'h', 'I', 'J', 'L', 'M', 'i', 'j', 'l', 'm', 'N', 'O', 'P', 'R', 'n', 'o', 'p', 'r' };
 
 
-    inicioCambiosHijo(((grupos*)memoria)->velocidad, mutex, memoria);
-    ((grupos*)memoria)->pid[i] = GetCurrentThreadId();
+    inicioCambiosHijo(((grupos*)ipc.memoria)->velocidad, ipc.mutex, ipc.memoria);
+    ((grupos*)ipc.memoria)->pid[i] = GetCurrentThreadId();
 
     //ASIGNACION DE GRUPOS
     int posicion;
     if (i < 8) {
         posicion = i;
-        ((grupos*)memoria)->personas[i].nombre = nombres[i];
-        ((grupos*)memoria)->personas[i].grupo = 1;
+        ((grupos*)ipc.memoria)->personas[i].nombre = nombres[i];
+        ((grupos*)ipc.memoria)->personas[i].grupo = 1;
     }
     else if (i < 16) {
         posicion = i + 2;
-        ((grupos*)memoria)->personas[i + 2].nombre = nombres[i];
-        ((grupos*)memoria)->personas[i + 2].grupo = 2;
+        ((grupos*)ipc.memoria)->personas[i + 2].nombre = nombres[i];
+        ((grupos*)ipc.memoria)->personas[i + 2].grupo = 2;
 
     }
     else if (i < 24) {
         posicion = i + 4;
-        ((grupos*)memoria)->personas[i + 4].nombre = nombres[i];
-        ((grupos*)memoria)->personas[i + 4].grupo = 3;
+        ((grupos*)ipc.memoria)->personas[i + 4].nombre = nombres[i];
+        ((grupos*)ipc.memoria)->personas[i + 4].grupo = 3;
 
     }
     else if (i < 32) {
         posicion = i + 6;
-        ((grupos*)memoria)->personas[i + 6].nombre = nombres[i];
-        ((grupos*)memoria)->personas[i + 6].grupo = 4;
+        ((grupos*)ipc.memoria)->personas[i + 6].nombre = nombres[i];
+        ((grupos*)ipc.memoria)->personas[i + 6].grupo = 4;
 
     }
     UINT tipo;
 
-    WaitForSingleObject(semaforo, INFINITE);
+    WaitForSingleObject(ipc.semaforo, INFINITE);
 
-    LONG padre = ((grupos*)memoria)->pid[32];
+    LONG padre = ((grupos*)ipc.memoria)->pid[32];
 
     int j = 0;
 
@@ -197,41 +201,40 @@ DWORD WINAPI hijo(LPVOID parametro) {
 
     while (1) {
         //printf("%d \n", mensaje.wParam);
-        PeekMessage(&mensaje, NULL, WM_USER + 85, WM_USER + 85, PM_NOREMOVE);
-        if (mensaje.message == WM_USER + 85) {
-            break;
-        }
-        ((grupos*)memoria)->personas[posicion].grupo = aQueGrupo(posicion / 10 + 1);
+
+
+        ((grupos*)ipc.memoria)->personas[posicion].grupo = aQueGrupo(posicion / 10 + 1);
 
         tipo = posicion / 10;
-        tipo = tipo * 10 + WM_USER + ((grupos*)memoria)->personas[posicion].grupo - 1;
+        tipo = tipo * 10 + ((grupos*)ipc.memoria)->personas[posicion].grupo - 1;
         //printf("tipo %d \n",tipo);
-        PostThreadMessage(padre, tipo, i, NULL);// tipo +0
-        tipo = tipo + 100;
+        PostThreadMessage(padre, WM_USER, i, tipo);// tipo +0
 
-        GetMessage(&mensaje, NULL, tipo, tipo);//tipo +100
-        if (mensaje.message == WM_USER + 85) {
-            break;
+
+        GetMessage(&mensaje, NULL, WM_USER + 10, WM_USER + 19);//tipo +100
+        if (mensaje.message == WM_USER + 19) {
+            return 0;
         }
-        tipo = tipo + 100;
 
-        for (j = ((grupos*)memoria)->personas[posicion].grupo * 10 - 10; j < ((grupos*)memoria)->personas[posicion].grupo * 10; j++) {
-            if (((grupos*)memoria)->personas[j].nombre == ' ') {
-                ((grupos*)memoria)->personas[j].nombre = nombres[i];
-                ((grupos*)memoria)->personas[j].grupo = ((grupos*)memoria)->personas[posicion].grupo;
-                ((grupos*)memoria)->personas[posicion].nombre = ' ';
+
+        for (j = ((grupos*)ipc.memoria)->personas[posicion].grupo * 10 - 10; j < ((grupos*)ipc.memoria)->personas[posicion].grupo * 10; j++) {
+            if (((grupos*)ipc.memoria)->personas[j].nombre == ' ') {
+                ((grupos*)ipc.memoria)->personas[j].nombre = nombres[i];
+                ((grupos*)ipc.memoria)->personas[j].grupo = ((grupos*)ipc.memoria)->personas[posicion].grupo;
+                ((grupos*)ipc.memoria)->personas[posicion].nombre = ' ';
                 posicion = j;
                 break;
             }
         }
 
-        ((grupos*)memoria)->contador++;
+        ((grupos*)ipc.memoria)->contador++;
         incrementarCuenta();
-        PostThreadMessage(padre, tipo, i, NULL);//tipo +200
 
+        PostThreadMessage(padre, WM_USER + 20, i, NULL);//tipo +200
 
     }
-    exit(0);
+
+    return 0;
 }
 
 
@@ -312,8 +315,8 @@ int main(int argc, char* argv[]) {
         fflush(stdout);
         exit(1);
     }
-    mutex = CreateMutex(NULL, FALSE, "hola");
-    if (mutex == NULL) {
+    ipc.mutex = CreateMutex(NULL, FALSE, "hola");
+    if (ipc.mutex == NULL) {
         printf("Error al crear el sem?foro\r\n");
         fflush(stdout);
         exit(1);
@@ -325,29 +328,29 @@ int main(int argc, char* argv[]) {
     if (memory_handle == NULL) {
         // Error al crear el objeto de mapeo de archivos
         printf("Error creando memory handle");
-        CloseHandle(memoria);
+        CloseHandle(ipc.memoria);
         return 1;
     }
 
-    memoria = (char*)MapViewOfFile(memory_handle, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(grupos));
+    ipc.memoria = (char*)MapViewOfFile(memory_handle, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(grupos));
 
 
-    if (memoria == NULL) {
+    if (ipc.memoria == NULL) {
         // Error al mapear la vista de archivo en la memoria
         printf("Error creando memoria");
-        CloseHandle(memoria);
+        CloseHandle(ipc.memoria);
         return 1;
     }
-    semaforo = CreateSemaphore(NULL, 0, 33, "semaforo");
+    ipc.semaforo = CreateSemaphore(NULL, 0, 33, "semaforo");
     cosas parametros;
-    HANDLE hThread;
+    HANDLE hThread[33];
 
     int thread_indices[32];
 
-    ((grupos*)memoria)->contador = 0;
-	((grupos*)memoria)->velocidad = velocidad;
+    ((grupos*)ipc.memoria)->contador = 0;
+    ((grupos*)ipc.memoria)->velocidad = velocidad;
 
-    inicioCambios(((grupos*)memoria)->velocidad, mutex, memoria);
+    inicioCambios(((grupos*)ipc.memoria)->velocidad, ipc.mutex, ipc.memoria);
 
     //TIMER
     HANDLE timer = CreateWaitableTimer(NULL, TRUE, "timer");
@@ -363,7 +366,7 @@ int main(int argc, char* argv[]) {
         exit(1);
     }
 
-    hThread = CreateThread(NULL, 0, &padre, &parametros, NULL, NULL);
+    hThread[32] = CreateThread(NULL, 0, &padre, &parametros, NULL, NULL);
 
     if (hThread == NULL) {
         fprintf(stderr, "Error al crear el hilo\n");
@@ -373,22 +376,23 @@ int main(int argc, char* argv[]) {
 
     for (int j = 0; j < 32; j++) {
         thread_indices[j] = j;
-        CreateThread(NULL, 0, &hijo, &thread_indices[j], NULL, NULL);
+        hThread[j] = CreateThread(NULL, 0, &hijo, &thread_indices[j], NULL, NULL);
     }
 
     WaitForSingleObject(timer, INFINITE);
 
     //MENSAJE FINAL
-    PostThreadMessage(((grupos*)memoria)->pid[32], WM_USER + 85, NULL, NULL);
-    WaitForSingleObject(hThread, INFINITE);
-    CloseHandle(hThread);
+    PostThreadMessage(((grupos*)ipc.memoria)->pid[32], WM_USER + 9, 50, NULL);
+
+    WaitForMultipleObjects(33, hThread, TRUE, INFINITE);
+
 
     finCambios();
 
-    CloseHandle(semaforo);
-    UnmapViewOfFile(memoria);
+    CloseHandle(ipc.semaforo);
+    UnmapViewOfFile(ipc.memoria);
     CloseHandle(memory_handle);
-    CloseHandle(mutex);
+    CloseHandle(ipc.mutex);
     if (!FreeLibrary(lib)) {
         printf("Error al liberar la libreria\r\n");
         fflush(stdout);
