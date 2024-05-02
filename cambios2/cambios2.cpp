@@ -9,7 +9,7 @@ INT(*aQueGrupo) (INT);
 VOID(*ponError) (CHAR*);
 INT(*inicioCambios) (INT, HANDLE, CHAR*);
 INT(*inicioCambiosHijo) (INT, HANDLE, CHAR*);
-
+VOID(*incrementarCuenta) (VOID);
 
 
 typedef struct {
@@ -22,21 +22,26 @@ typedef struct {
     int vacio;
     LONG contador;
     DWORD pid[33];
+    HANDLE timer;
 }grupos;
 
 typedef struct {
     int i;
+    
 } cosas;
 
 char* memoria;
 HANDLE mutex;
-
+HANDLE semaforo;
 
 DWORD WINAPI padre(LPVOID parametro) {
+    MSG mensaje;
+    PeekMessage(&mensaje, NULL, WM_USER, WM_USER, PM_NOREMOVE);
     int i = 0;
+    int hijos=0;
     using namespace std;
     ((grupos*)memoria)->pid[32] = GetCurrentThreadId();
-
+    ReleaseSemaphore(semaforo,32,0);
     list<int> matriz[4][4];
 
 
@@ -45,24 +50,27 @@ DWORD WINAPI padre(LPVOID parametro) {
     int bandera = 1;
     int fila = 0;
     int j;
-    Sleep(1000);
+    
+    for (hijos = 0;hijos < 32;hijos++) {
+        GetMessage(&mensaje, NULL, WM_USER + 80, WM_USER + 80);
+    }
+    
     refrescar();
 
-    MSG mensaje;
+    
     UINT tipo;
     int contador;
     int remitente;
     int destinatario;
-    PeekMessage(&mensaje, NULL, WM_USER, WM_USER, PM_NOREMOVE);
-    Sleep(2000);
+   
     //char nombres[32] = { 'A', 'B', 'C', 'D', 'a', 'b', 'c', 'd', 'E', 'F', 'G', 'H', 'e', 'f', 'g', 'h', 'I', 'J', 'L', 'M', 'i', 'j', 'l', 'm', 'N', 'O', 'P', 'R', 'n', 'o', 'p', 'r' };
 
 
 
     while (1) {
-
+        
         GetMessage(&mensaje, NULL, WM_USER, WM_USER + 99);//tipo +0
-
+        
         remitente = (mensaje.message - WM_USER) / 10;
         destinatario = (mensaje.message - WM_USER) % 10;
 
@@ -113,7 +121,7 @@ DWORD WINAPI padre(LPVOID parametro) {
             }
             if (bandera == 0) {
                 //printf("%c se quiere cambiar por %c por %c por %c \n", nombres[matriz[multiple[0] / 10][multiple[0] % 10].front()], nombres[matriz[multiple[1] / 10][multiple[1] % 10].front()], nombres[matriz[multiple[2] / 10][multiple[2] % 10].front()], nombres[matriz[multiple[3] / 10][multiple[3] % 10].front()]);
-                //Sleep(10000);
+                
                 for (i = 0; i <= contador; i++) {
 
                     tipo = multiple[i] + WM_USER + 100;
@@ -133,6 +141,9 @@ DWORD WINAPI padre(LPVOID parametro) {
 }
 
 DWORD WINAPI hijo(LPVOID parametro) {
+    MSG mensaje;
+    PeekMessage(&mensaje, NULL, WM_USER, WM_USER, PM_NOREMOVE);
+    
     int i = *((int*)parametro);
 
     char nombres[32] = { 'A', 'B', 'C', 'D', 'a', 'b', 'c', 'd', 'E', 'F', 'G', 'H', 'e', 'f', 'g', 'h', 'I', 'J', 'L', 'M', 'i', 'j', 'l', 'm', 'N', 'O', 'P', 'R', 'n', 'o', 'p', 'r' };
@@ -140,7 +151,8 @@ DWORD WINAPI hijo(LPVOID parametro) {
 
     inicioCambiosHijo(0, mutex, memoria);
     ((grupos*)memoria)->pid[i] = GetCurrentThreadId();
-
+    
+    //ASIGNACION DE GRUPOS
     int posicion;
     if (i < 8) {
         posicion = i;
@@ -166,19 +178,23 @@ DWORD WINAPI hijo(LPVOID parametro) {
 
     }
     UINT tipo;
+    WaitForSingleObject(semaforo,INFINITE);
     LONG padre = ((grupos*)memoria)->pid[32];
-    MSG mensaje;
+   
     int j = 0;
-    PeekMessage(&mensaje, NULL, WM_USER, WM_USER, PM_NOREMOVE);
-    Sleep(2000);
+    
+   
+    PostThreadMessage(padre, WM_USER+80, NULL, NULL);// tipo +0
+  
+    
     while (1) {
         //printf("%d \n", mensaje.wParam);
-
+        
         ((grupos*)memoria)->personas[posicion].grupo = aQueGrupo(posicion / 10 + 1);
-
+        
         tipo = posicion / 10;
         tipo = tipo * 10 + WM_USER + ((grupos*)memoria)->personas[posicion].grupo - 1;
-
+        //printf("tipo %d \n",tipo);
         PostThreadMessage(padre, tipo, i, NULL);// tipo +0
         tipo = tipo + 100;
         GetMessage(&mensaje, NULL, tipo, tipo);//tipo +100
@@ -195,15 +211,30 @@ DWORD WINAPI hijo(LPVOID parametro) {
         }
 
         ((grupos*)memoria)->contador++;
-
+        incrementarCuenta();
         PostThreadMessage(padre, tipo, i, NULL);//tipo +200
 
 
     }
-    return 0;
+    exit(0);
 }
 
+
 int main(int argc, char* argv[]) {
+    int vel;
+    LARGE_INTEGER liDueTime;
+    
+    if (argc == 1) {
+        puts("No se ha ingresado la velocidad de cambio, se usara la velocidad por defecto de 0");
+        vel = 0;
+        liDueTime.QuadPart = -200000000LL;
+	}
+    else {
+        printf("La velocidad de cambio es %s\n", argv[1]);
+		vel = atoi(argv[1]);
+		liDueTime.QuadPart = 30000000LL;
+	}
+
     HINSTANCE lib = LoadLibrary("cambios2.dll");
 
     if (lib == NULL) {
@@ -219,7 +250,7 @@ int main(int argc, char* argv[]) {
         exit(1);
     }
 
-    FARPROC incrementarCuenta = GetProcAddress(lib, "incrementarCuenta");
+    incrementarCuenta = (VOID(*)(VOID)) GetProcAddress(lib, "incrementarCuenta");
     if (incrementarCuenta == NULL) {
         printf("No se ha podido cargar la funcion\r\n");
         fflush(stdout);
@@ -295,12 +326,29 @@ int main(int argc, char* argv[]) {
         CloseHandle(memoria);
         return 1;
     }
-
+    semaforo = CreateSemaphore(NULL, 0, 33, "semaforo");
     cosas parametros;
     HANDLE hThread;
 
     int thread_indices[32];
+
     inicioCambios(0, mutex, memoria);
+
+    //TIMER
+    HANDLE timer = CreateWaitableTimer(NULL, TRUE, "timer");
+    if (timer == NULL) {
+		printf("Error al crear el timer\r\n");
+		fflush(stdout);
+		exit(1);
+	}
+    ((grupos*)memoria)->timer = timer;
+    
+    if (!SetWaitableTimer(timer, &liDueTime, 1000, NULL, NULL, FALSE)) {
+        printf("Error al establecer el timer\r\n");
+        fflush(stdout);
+        exit(1);
+    }
+
     hThread = CreateThread(NULL, 0, &padre, &parametros, NULL, NULL);
 
     if (hThread == NULL) {
@@ -314,10 +362,15 @@ int main(int argc, char* argv[]) {
         CreateThread(NULL, 0, &hijo, &thread_indices[j], NULL, NULL);
 
     }
-
+    
+    WaitForSingleObject(timer, INFINITE);
+    while (1) {
+        printf("a");
+    }
     WaitForSingleObject(hThread, INFINITE);
     CloseHandle(hThread);
-
+    CloseHandle(semaforo);
+    CloseHandle(memory_handle);
     CloseHandle(mutex);
     if (!FreeLibrary(lib)) {
         printf("Error al liberar la libreria\r\n");
